@@ -53,7 +53,12 @@ object ShipDeckLanding {
     data class Params(
         val groundPitchDeg: Double,
         val orientationLerp: Double = ORIENTATION_LERP,
-        val dt: Double = 1.0 / 20.0
+        /**
+         * When true, add `(vShip - vel)` to position this tick (both in blocks/tick).
+         * Must be true only when VS EntityDragger is suppressed for the entity;
+         * otherwise the plane is carried twice. Policy lives in [ShipDeckBridge].
+         */
+        val integrateShipCarryIntoPosition: Boolean = ShipDeckBridge.integrateKinematicPositionCarry()
     )
 
     data class Result(
@@ -106,10 +111,10 @@ object ShipDeckLanding {
         }
 
         val newPosition = Vector3d(oriented.position)
-        if (oriented.enginesIdle) {
-            // IA already integrated world velocity (often damped). Add the missing
-            // ship-carry so the net motion this tick is vShip.
-            newPosition.add(Vector3d(vShip).sub(oriented.velocity).mul(params.dt))
+        if (oriented.enginesIdle && params.integrateShipCarryIntoPosition) {
+            // Velocities are blocks/tick. IA already moved by `oriented.velocity`;
+            // add the missing ship-carry so net motion this tick is vShip.
+            newPosition.add(Vector3d(vShip).sub(oriented.velocity))
         }
         val carried = oriented.copy(position = newPosition, velocity = newVelocity)
         val penetrationBefore = signedPenetration(carried, ship)

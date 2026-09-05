@@ -8,6 +8,7 @@ import org.joml.Matrix4d
 import org.joml.Quaterniond
 import org.joml.Vector3d
 import org.valkyrienskies.core.api.ships.Ship
+import org.valkyrienskies.eureka.math.ShipDeckBridge
 import org.valkyrienskies.eureka.math.ShipDeckLanding
 import org.valkyrienskies.mod.common.getShipsIntersecting
 import org.valkyrienskies.mod.common.util.toJOML
@@ -21,28 +22,30 @@ import java.util.function.Supplier
  */
 object ShipDeckLandingApplier {
 
+    /**
+     * @return true if the plane was treated as landed on a ship this tick
+     * (VS EntityDragger must then be suppressed for this entity).
+     */
     @JvmStatic
     fun apply(
         entity: Entity,
         roll: Float,
         setRoll: Consumer<Float>,
         extraShapes: Supplier<List<AABB>>
-    ) {
+    ): Boolean {
         if (!entity.isControlledByLocalInstance) {
-            return
+            return false
         }
         val level = entity.level()
         val probe = entity.boundingBox.inflate(3.0, 2.0, 3.0)
-        val ship = level.getShipsIntersecting(probe).firstOrNull() ?: return
+        val ship = level.getShipsIntersecting(probe).firstOrNull() ?: return false
 
-        val deckY = findDeckYInShip(entity, ship) ?: return
+        val deckY = findDeckYInShip(entity, ship) ?: return false
         val transform = ship.transform
         val shipToWorld = Matrix4d(transform.shipToWorld)
         val worldToShip = Matrix4d(transform.worldToShip)
         val rotation = Quaterniond(transform.shipToWorldRotation)
         val com = Vector3d(transform.positionInWorld)
-        val linVel = Vector3d(ship.velocity)
-        val omega = Vector3d(ship.angularVelocity)
 
         val extras = extraShapes.get().map { aabb ->
             worldAabbToLocal(aabb, entity.x, entity.y, entity.z, entity.yRot.toDouble(), entity.xRot.toDouble(), roll.toDouble())
@@ -59,32 +62,34 @@ object ShipDeckLandingApplier {
             extraBoxes = extras,
             enginesIdle = true
         )
-        val shipFrame = ShipDeckLanding.ShipFrame(
+
+        val heightAboveDeck = worldToShip.transformPosition(Vector3d(entity.x, entity.y, entity.z)).y - deckY
+        val probeFrame = ShipDeckBridge.shipFrameForEntityTick(
+            shipToWorld, worldToShip, rotation, ship.velocity, ship.angularVelocity, com, deckY
+        )
+        if (heightAboveDeck > 2.5 && ShipDeckLanding.signedPenetration(plane, probeFrame) < 0.0) {
+            return false
+        }
+
+        val result = ShipDeckBridge.correctLandedPlaneForEntityTick(
+            plane = plane,
             shipToWorld = shipToWorld,
             worldToShip = worldToShip,
             rotation = rotation,
-            linearVelocity = linVel,
-            angularVelocity = omega,
+            linearVelocityBlocksPerSecond = ship.velocity,
+            angularVelocityBlocksPerSecond = ship.angularVelocity,
             comWorld = com,
-            deckYInShip = deckY
+            deckYInShip = deckY,
+            groundPitchDeg = 4.0
         )
-
-        val heightAboveDeck = worldToShip.transformPosition(Vector3d(entity.x, entity.y, entity.z)).y - deckY
-        if (heightAboveDeck > 2.5 && ShipDeckLanding.signedPenetration(plane, shipFrame) < 0.0) {
-            return
-        }
-
-        val result = ShipDeckLanding.correct(
-            plane,
-            shipFrame,
-            ShipDeckLanding.Params(groundPitchDeg = 4.0)
-        )
+        val delta = ShipDeckBridge.deltaMovementToWrite(result)
         entity.setPos(result.position.x, result.position.y, result.position.z)
-        entity.deltaMovement = Vec3(result.velocity.x, result.velocity.y, result.velocity.z)
+        entity.deltaMovement = Vec3(delta.x, delta.y, delta.z)
         entity.yRot = result.yawDeg.toFloat()
         entity.xRot = result.pitchDeg.toFloat()
         setRoll.accept(result.rollDeg.toFloat())
         entity.setOnGround(result.onGround)
+        return ShipDeckBridge.vsDragSuppressedForLandedPlane()
     }
 
     private fun findDeckYInShip(entity: Entity, ship: Ship): Double? {

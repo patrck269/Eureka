@@ -8,6 +8,7 @@ import net.minecraft.world.phys.AABB;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -29,12 +30,24 @@ public abstract class MixinImmersiveAircraftVehicle {
     @Shadow(remap = false)
     public abstract List<AABB> getAdditionalShapes();
 
+    @Unique
+    private boolean eureka$landedOnShip;
+
     @Inject(method = "tick()V", at = @At("TAIL"))
     private void vs$correctLandedPlaneOnShip(final CallbackInfo ci) {
         final Entity entity = (Entity) (Object) this;
         final float currentRoll = this.roll;
         final Consumer<Float> setRoll = this::setZRot;
         final Supplier<List<AABB>> extras = this::getAdditionalShapes;
-        ShipDeckLandingApplier.apply(entity, currentRoll, setRoll, extras);
+        this.eureka$landedOnShip = ShipDeckLandingApplier.apply(entity, currentRoll, setRoll, extras);
+    }
+
+    /**
+     * Overrides VS MixinEntity.vs$shouldDrag for IA vehicles. While landed we write
+     * ship velocity into deltaMovement (blocks/tick) and integrate carry ourselves;
+     * EntityDragger must not also transform position.
+     */
+    public boolean vs$shouldDrag() {
+        return !this.eureka$landedOnShip;
     }
 }
