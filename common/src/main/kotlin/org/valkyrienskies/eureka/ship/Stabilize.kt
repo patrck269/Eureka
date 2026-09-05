@@ -4,6 +4,7 @@ import org.joml.Vector3d
 import org.joml.Vector3dc
 import org.valkyrienskies.core.api.ships.PhysShip
 import org.valkyrienskies.eureka.EurekaConfig
+import org.valkyrienskies.eureka.math.StabilizeMath
 import kotlin.math.atan
 import kotlin.math.max
 
@@ -19,26 +20,15 @@ fun stabilize(
     val worldUp = Vector3d(0.0, 1.0, 0.0)
     ship.transform.shipToWorldRotation.transform(shipUp)
 
-    val angleBetween = shipUp.angle(worldUp)
-    val idealAngularAcceleration = Vector3d()
-    if (angleBetween > .01) {
-        val stabilizationRotationAxisNormalized = shipUp.cross(worldUp, Vector3d()).normalize()
-        idealAngularAcceleration.add(
-            stabilizationRotationAxisNormalized.mul(
-                angleBetween,
-                stabilizationRotationAxisNormalized
-            )
-        )
-    }
-
-    // Only subtract the x/z components of omega.
-    // We still want to allow rotation along the Y-axis (yaw).
-    // Except if yaw is true, then we stabilize
-    idealAngularAcceleration.sub(
-        omega.x(),
-        if (!yaw) 0.0 else omega.y(),
-        omega.z()
+    val idealAngularAcceleration = StabilizeMath.idealAngularAcceleration(
+        shipUp,
+        worldUp,
+        omega,
+        dampYaw = yaw
     )
+    if (!StabilizeMath.isFinite(idealAngularAcceleration)) {
+        return
+    }
 
     val stabilizationTorque = ship.transform.shipToWorldRotation.transform(
         ship.momentOfInertia.transform(

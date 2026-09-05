@@ -2,6 +2,10 @@
   "required": true,
   "package": "org.valkyrienskies.eureka.mixin",
   "compatibilityLevel": "JAVA_17",
+  "plugin": "org.valkyrienskies.eureka.mixin.EurekaMixinConfigPlugin",
+  "mixins": [
+    "compat.MixinImmersiveAircraftVehicle"
+  ],
   "client": [
     "client.PlayerEntityModelMixin"
   ],

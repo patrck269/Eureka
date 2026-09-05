@@ -132,3 +132,8 @@ allprojects {
         withSourcesJar()
     }
 }
+
+tasks.register("landingTests", Exec) {
+    workingDir = file("unit")
+    commandLine "${rootDir}/gradlew.bat", "-p", "${rootDir}/unit", "test"
+}

@@ -20,6 +20,7 @@ import org.valkyrienskies.core.api.util.GameTickOnly
 import org.valkyrienskies.core.api.util.PhysTickOnly
 import org.valkyrienskies.core.api.world.PhysLevel
 import org.valkyrienskies.eureka.EurekaConfig
+import org.valkyrienskies.eureka.math.BalloonForce
 import org.valkyrienskies.mod.api.SeatedControllingPlayer
 import org.valkyrienskies.mod.common.ValkyrienSkiesMod
 import org.valkyrienskies.mod.common.util.toJOMLD
@@ -106,7 +107,9 @@ class EurekaShipControl : ShipPhysicsListener, ServerTickListener {
                 var balloonForce = getBalloonForce()
                 // balloon force 100% at y 100, 0% at y 320
                 // the "velY * 10" reduces bobbing by sampling the height position in the future
-                balloonForce *= 1 - Math.clamp(0.0, 1.0, (physShip.transform.positionInWorld.y() + velY * 10 - EurekaConfig.SERVER.passiveBalloonMinHeight) / (EurekaConfig.SERVER.passiveBalloonMaxHeight - EurekaConfig.SERVER.passiveBalloonMinHeight))
+                val heightFrac = (physShip.transform.positionInWorld.y() + velY * 10 - EurekaConfig.SERVER.passiveBalloonMinHeight) /
+                    (EurekaConfig.SERVER.passiveBalloonMaxHeight - EurekaConfig.SERVER.passiveBalloonMinHeight)
+                balloonForce *= 1 - heightFrac.coerceIn(0.0, 1.0)
                 balloonForce = min(balloonForce, max(getIdealUpwardForce(EurekaConfig.SERVER.balloonElevationMaxSpeed, velY, mass), 0.0))
                 physShip.applyWorldForce(Vector3d(0.0, balloonForce, 0.0))
 
@@ -216,16 +219,13 @@ class EurekaShipControl : ShipPhysicsListener, ServerTickListener {
     }
 
     private fun getBalloonForce(): Double {
-        // Disable if maxBalloonsPerEngine <= 0
-        if (EurekaConfig.SERVER.maxBalloonsPerEngine > 0) {
-            // remove power from unpowered balloons
-            return balloons * forcePerBalloon * min(
-                1.0,
-                // (currentTotalEnginePower * maxBalloonsPerEngine) / (enginePowerAtMaxHeat * balloonsCount)
-                ( extraForceLinear * EurekaConfig.SERVER.maxBalloonsPerEngine ) / ( EurekaConfig.SERVER.enginePowerLinear * balloons )
-            )
-        }
-        return balloons * forcePerBalloon
+        return BalloonForce.poweredLift(
+            balloons = balloons,
+            extraForceLinear = extraForceLinear,
+            maxBalloonsPerEngine = EurekaConfig.SERVER.maxBalloonsPerEngine.toDouble(),
+            enginePowerLinear = EurekaConfig.SERVER.enginePowerLinear.toDouble(),
+            forcePerBalloon = forcePerBalloon
+        )
     }
 
     private fun getFloaterFactor(mass: Double): Double {
