@@ -53,6 +53,14 @@ class ShipDeckLandingTest {
             ShipDeckLanding.enginesIdle(occupied = false, relativeSpeed = 1.5),
             "catapult / takeoff speed must not be glued back to the ship"
         )
+        assertFalse(
+            ShipDeckLanding.shouldApplyDeckGlue(occupied = true),
+            "occupied planes used vanilla IA+VS before the backflip glue; do not correct them"
+        )
+        assertTrue(
+            ShipDeckLanding.shouldApplyDeckGlue(occupied = false),
+            "empty parked planes still need deck glue"
+        )
     }
 
     @Test

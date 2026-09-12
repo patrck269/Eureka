@@ -161,6 +161,12 @@ object ShipDeckLanding {
      * engine target means treat the deck like land: keep relative speed so the
      * plane can roll and take off.
      */
+    /**
+     * Occupied planes used vanilla IA + VS drag before the backflip glue.
+     * Only empty vehicles get deck correction.
+     */
+    fun shouldApplyDeckGlue(occupied: Boolean): Boolean = !occupied
+
     fun enginesIdle(
         enginePower: Double = 0.0,
         engineTarget: Double = 0.0,

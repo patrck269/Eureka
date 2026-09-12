@@ -65,7 +65,11 @@ class MixinWiringTest {
     fun applierGluesUnoccupiedPlanesEvenWhenNotLocalInstance() {
         val applier = Files.readString(applierKt())
         assertTrue(applier.contains("isVehicle"), "empty planes must glue on dedicated/client without a rider")
-        assertTrue(applier.contains("occupied"))
+        assertTrue(applier.contains("shouldApplyDeckGlue"))
+        assertFalse(
+            applier.contains("occupied && !entity.isControlledByLocalInstance"),
+            "occupied planes must skip glue entirely, not only on the non-controlling side"
+        )
     }
 
     @Test

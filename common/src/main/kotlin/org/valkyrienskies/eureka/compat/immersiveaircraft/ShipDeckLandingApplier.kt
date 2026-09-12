@@ -36,9 +36,7 @@ object ShipDeckLandingApplier {
         groundPitchDeg: Double = 4.0
     ): Boolean {
         val occupied = entity.isVehicle
-        // Unoccupied planes must glue on dedicated and on the client. Occupied
-        // planes stay on the controlling instance so rider input is not fought.
-        if (occupied && !entity.isControlledByLocalInstance) {
+        if (!ShipDeckLanding.shouldApplyDeckGlue(occupied)) {
             return false
         }
         val level = entity.level()
