@@ -62,6 +62,13 @@ class MixinWiringTest {
     }
 
     @Test
+    fun applierGluesUnoccupiedPlanesEvenWhenNotLocalInstance() {
+        val applier = Files.readString(applierKt())
+        assertTrue(applier.contains("isVehicle"), "empty planes must glue on dedicated/client without a rider")
+        assertTrue(applier.contains("occupied"))
+    }
+
+    @Test
     fun applierReadsEngineIdleFromVehicleInsteadOfForcingParked() {
         val applier = Files.readString(applierKt())
         assertFalse(

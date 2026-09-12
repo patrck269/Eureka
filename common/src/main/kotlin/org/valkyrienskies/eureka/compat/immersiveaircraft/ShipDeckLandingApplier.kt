@@ -35,7 +35,10 @@ object ShipDeckLandingApplier {
         extraShapes: Supplier<List<AABB>>,
         groundPitchDeg: Double = 4.0
     ): Boolean {
-        if (!entity.isControlledByLocalInstance) {
+        val occupied = entity.isVehicle
+        // Unoccupied planes must glue on dedicated and on the client. Occupied
+        // planes stay on the controlling instance so rider input is not fought.
+        if (occupied && !entity.isControlledByLocalInstance) {
             return false
         }
         val level = entity.level()
@@ -62,7 +65,7 @@ object ShipDeckLandingApplier {
             aabbHalfWidth = entity.bbWidth / 2.0,
             aabbHeight = entity.bbHeight.toDouble(),
             extraBoxes = extras,
-            enginesIdle = ShipDeckLanding.enginesIdleFromVehicle(entity)
+            enginesIdle = ShipDeckLanding.enginesIdleFromVehicle(entity, occupied = occupied)
         )
 
         val probeFrame = ShipDeckBridge.shipFrameForEntityTick(
@@ -87,11 +90,20 @@ object ShipDeckLandingApplier {
             groundPitchDeg = groundPitchDeg
         )
         val delta = ShipDeckBridge.deltaMovementToWrite(result)
-        entity.setPos(result.position.x, result.position.y, result.position.z)
         entity.deltaMovement = Vec3(delta.x, delta.y, delta.z)
-        entity.yRot = result.yawDeg.toFloat()
-        entity.xRot = result.pitchDeg.toFloat()
-        setRoll.accept(result.rollDeg.toFloat())
+        if (plane.enginesIdle) {
+            entity.setPos(result.position.x, result.position.y, result.position.z)
+            entity.yRot = result.yawDeg.toFloat()
+            entity.xRot = result.pitchDeg.toFloat()
+            setRoll.accept(result.rollDeg.toFloat())
+        } else {
+            val dy = result.position.y - entity.y
+            val dx = result.position.x - entity.x
+            val dz = result.position.z - entity.z
+            if (dx * dx + dy * dy + dz * dz > 1.0e-8) {
+                entity.setPos(result.position.x, result.position.y, result.position.z)
+            }
+        }
         entity.setOnGround(result.onGround)
         return result.onGround && ShipDeckBridge.vsDragSuppressedForLandedPlane()
     }

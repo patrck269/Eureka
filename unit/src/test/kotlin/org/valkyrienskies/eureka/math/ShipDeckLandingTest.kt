@@ -45,6 +45,30 @@ class ShipDeckLandingTest {
         assertFalse(
             ShipDeckLanding.enginesIdleFromVehicle(FakeTaxiInput(1.0f))
         )
+        assertTrue(
+            ShipDeckLanding.enginesIdle(engineTarget = 1.0, occupied = false),
+            "unoccupied plane is parked even if engines are still spinning down"
+        )
+    }
+
+    @Test
+    fun taxiingPlaneKeepsYawAndHorizontalPosition() {
+        val phys = physicsShip()
+        val taxiing = restOnDeck(phys).copy(
+            enginesIdle = false,
+            yawDeg = 45.0,
+            pitchDeg = -12.0,
+            rollDeg = 8.0,
+            velocity = Vector3d(0.18, 0.0, 0.18)
+        )
+        val result = correctOnDeck(taxiing, phys)
+        assertEquals(45.0, result.yawDeg, 1e-6, "taxi must not slam yaw; that stutters steering")
+        assertEquals(-12.0, result.pitchDeg, 1e-6, "taxi must not slam pitch toward ground sit")
+        assertEquals(8.0, result.rollDeg, 1e-6)
+        assertEquals(taxiing.position.x, result.position.x, 1e-6, "setPos rewind of x/z is the hitch")
+        assertEquals(taxiing.position.z, result.position.z, 1e-6)
+        assertEquals(0.18, result.velocity.x, 1e-6)
+        assertEquals(0.18, result.velocity.z, 1e-6)
     }
 
     @Test

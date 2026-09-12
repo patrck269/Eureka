@@ -80,22 +80,25 @@ object ShipDeckLanding {
     fun correct(plane: PlaneState, ship: ShipFrame, params: Params): Result {
         val shipUpWorld = ship.rotation.transform(Vector3d(0.0, 1.0, 0.0))
 
-        val qVehicle = iaRotation(plane.yawDeg, plane.pitchDeg, plane.rollDeg)
-        val qRel = Quaterniond(ship.rotation).invert().mul(qVehicle)
-        val rel = extractIaEuler(qRel)
-
-        val newPitchRel = (rel.pitchDeg + params.groundPitchDeg) * params.orientationLerp -
-            params.groundPitchDeg
-        val newRollRel = rel.rollDeg * params.orientationLerp
-        val qRelNew = iaRotation(rel.yawDeg, newPitchRel, newRollRel)
-        val qVehicleNew = Quaterniond(ship.rotation).mul(qRelNew)
-        val worldEuler = extractIaEuler(qVehicleNew)
-
-        val oriented = plane.copy(
-            yawDeg = worldEuler.yawDeg,
-            pitchDeg = worldEuler.pitchDeg,
-            rollDeg = worldEuler.rollDeg
-        )
+        val oriented = if (plane.enginesIdle) {
+            val qVehicle = iaRotation(plane.yawDeg, plane.pitchDeg, plane.rollDeg)
+            val qRel = Quaterniond(ship.rotation).invert().mul(qVehicle)
+            val rel = extractIaEuler(qRel)
+            val newPitchRel = (rel.pitchDeg + params.groundPitchDeg) * params.orientationLerp -
+                params.groundPitchDeg
+            val newRollRel = rel.rollDeg * params.orientationLerp
+            val qRelNew = iaRotation(rel.yawDeg, newPitchRel, newRollRel)
+            val qVehicleNew = Quaterniond(ship.rotation).mul(qRelNew)
+            val worldEuler = extractIaEuler(qVehicleNew)
+            plane.copy(
+                yawDeg = worldEuler.yawDeg,
+                pitchDeg = worldEuler.pitchDeg,
+                rollDeg = worldEuler.rollDeg
+            )
+        } else {
+            // Taxi/takeoff: do not slam pose. Rewriting yaw/pitch every tick fights IA input.
+            plane
+        }
 
         val r = Vector3d(oriented.position).sub(ship.comWorld)
         val vShip = Vector3d(ship.linearVelocity).add(Vector3d(ship.angularVelocity).cross(r))
@@ -162,20 +165,24 @@ object ShipDeckLanding {
         enginePower: Double = 0.0,
         engineTarget: Double = 0.0,
         taxiInput: Double = 0.0,
-        throttle: Double = 0.0
+        throttle: Double = 0.0,
+        occupied: Boolean = true
     ): Boolean {
+        if (!occupied) {
+            return true
+        }
         return enginePower <= IDLE_EPS &&
             engineTarget <= IDLE_EPS &&
             abs(taxiInput) <= IDLE_EPS &&
             throttle <= IDLE_EPS
     }
 
-    fun enginesIdleFromVehicle(vehicle: Any): Boolean {
+    fun enginesIdleFromVehicle(vehicle: Any, occupied: Boolean = true): Boolean {
         val enginePower = numberMethod(vehicle, "getEnginePower")
         val engineTarget = numberMethod(vehicle, "getEngineTarget")
         val throttle = numberMethod(vehicle, "getThrottle")
         val taxiInput = interpolatedAxis(vehicle, "pressingInterpolatedZ")
-        return enginesIdle(enginePower, engineTarget, taxiInput, throttle)
+        return enginesIdle(enginePower, engineTarget, taxiInput, throttle, occupied)
     }
 
     fun signedPenetration(plane: PlaneState, ship: ShipFrame): Double {
