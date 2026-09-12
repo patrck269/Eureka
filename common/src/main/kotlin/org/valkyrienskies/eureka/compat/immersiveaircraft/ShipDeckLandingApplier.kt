@@ -65,7 +65,11 @@ object ShipDeckLandingApplier {
             aabbHalfWidth = entity.bbWidth / 2.0,
             aabbHeight = entity.bbHeight.toDouble(),
             extraBoxes = extras,
-            enginesIdle = ShipDeckLanding.enginesIdleFromVehicle(entity, occupied = occupied)
+            enginesIdle = ShipDeckLanding.enginesIdleFromVehicle(
+                entity,
+                occupied = occupied,
+                relativeSpeed = relativeSpeedToShip(entity, ship)
+            )
         )
 
         val probeFrame = ShipDeckBridge.shipFrameForEntityTick(
@@ -106,6 +110,11 @@ object ShipDeckLandingApplier {
         }
         entity.setOnGround(result.onGround)
         return result.onGround && ShipDeckBridge.vsDragSuppressedForLandedPlane()
+    }
+
+    private fun relativeSpeedToShip(entity: Entity, ship: Ship): Double {
+        val shipTick = Vector3d(ship.velocity).mul(ShipDeckBridge.SECONDS_PER_TICK)
+        return Vector3d(entity.deltaMovement.toJOML()).sub(shipTick).length()
     }
 
     private fun findDeckYInShip(entity: Entity, ship: Ship): Double? {

@@ -166,8 +166,12 @@ object ShipDeckLanding {
         engineTarget: Double = 0.0,
         taxiInput: Double = 0.0,
         throttle: Double = 0.0,
-        occupied: Boolean = true
+        occupied: Boolean = true,
+        relativeSpeed: Double = 0.0
     ): Boolean {
+        if (relativeSpeed >= PARK_RELATIVE_SPEED) {
+            return false
+        }
         if (!occupied) {
             return true
         }
@@ -177,12 +181,16 @@ object ShipDeckLanding {
             throttle <= IDLE_EPS
     }
 
-    fun enginesIdleFromVehicle(vehicle: Any, occupied: Boolean = true): Boolean {
+    fun enginesIdleFromVehicle(
+        vehicle: Any,
+        occupied: Boolean = true,
+        relativeSpeed: Double = 0.0
+    ): Boolean {
         val enginePower = numberMethod(vehicle, "getEnginePower")
         val engineTarget = numberMethod(vehicle, "getEngineTarget")
         val throttle = numberMethod(vehicle, "getThrottle")
         val taxiInput = interpolatedAxis(vehicle, "pressingInterpolatedZ")
-        return enginesIdle(enginePower, engineTarget, taxiInput, throttle, occupied)
+        return enginesIdle(enginePower, engineTarget, taxiInput, throttle, occupied, relativeSpeed)
     }
 
     fun signedPenetration(plane: PlaneState, ship: ShipFrame): Double {
@@ -331,5 +339,6 @@ object ShipDeckLanding {
     const val CONTACT_SNAP = 0.08
     const val ON_GROUND_SLOP = 0.06
     const val IDLE_EPS = 0.05
+    const val PARK_RELATIVE_SPEED = 0.25
 }
 

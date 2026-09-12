@@ -49,6 +49,10 @@ class ShipDeckLandingTest {
             ShipDeckLanding.enginesIdle(engineTarget = 1.0, occupied = false),
             "unoccupied plane is parked even if engines are still spinning down"
         )
+        assertFalse(
+            ShipDeckLanding.enginesIdle(occupied = false, relativeSpeed = 1.5),
+            "catapult / takeoff speed must not be glued back to the ship"
+        )
     }
 
     @Test
