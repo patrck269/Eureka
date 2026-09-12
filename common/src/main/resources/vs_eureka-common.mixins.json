@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_17",
   "plugin": "org.valkyrienskies.eureka.mixin.EurekaMixinConfigPlugin",
   "mixins": [
+    "MixinEntityShipDeckLanding",
     "compat.MixinImmersiveAircraftVehicle",
     "compat.MixinSimplePlanesVehicle"
   ],
