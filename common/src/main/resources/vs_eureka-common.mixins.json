@@ -4,7 +4,8 @@
   "compatibilityLevel": "JAVA_17",
   "plugin": "org.valkyrienskies.eureka.mixin.EurekaMixinConfigPlugin",
   "mixins": [
-    "compat.MixinImmersiveAircraftVehicle"
+    "compat.MixinImmersiveAircraftVehicle",
+    "compat.MixinSimplePlanesVehicle"
   ],
   "client": [
     "client.PlayerEntityModelMixin"

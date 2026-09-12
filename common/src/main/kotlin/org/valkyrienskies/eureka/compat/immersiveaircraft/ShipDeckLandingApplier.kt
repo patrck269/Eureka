@@ -27,11 +27,13 @@ object ShipDeckLandingApplier {
      * (VS EntityDragger must then be suppressed for this entity).
      */
     @JvmStatic
+    @JvmOverloads
     fun apply(
         entity: Entity,
         roll: Float,
         setRoll: Consumer<Float>,
-        extraShapes: Supplier<List<AABB>>
+        extraShapes: Supplier<List<AABB>>,
+        groundPitchDeg: Double = 4.0
     ): Boolean {
         if (!entity.isControlledByLocalInstance) {
             return false
@@ -60,14 +62,16 @@ object ShipDeckLandingApplier {
             aabbHalfWidth = entity.bbWidth / 2.0,
             aabbHeight = entity.bbHeight.toDouble(),
             extraBoxes = extras,
-            enginesIdle = true
+            enginesIdle = ShipDeckLanding.enginesIdleFromVehicle(entity)
         )
 
-        val heightAboveDeck = worldToShip.transformPosition(Vector3d(entity.x, entity.y, entity.z)).y - deckY
         val probeFrame = ShipDeckBridge.shipFrameForEntityTick(
             shipToWorld, worldToShip, rotation, ship.velocity, ship.angularVelocity, com, deckY
         )
-        if (heightAboveDeck > 2.5 && ShipDeckLanding.signedPenetration(plane, probeFrame) < 0.0) {
+        if (!ShipDeckLanding.shouldApplyLandingCorrection(
+                ShipDeckLanding.signedPenetration(plane, probeFrame)
+            )
+        ) {
             return false
         }
 
@@ -80,7 +84,7 @@ object ShipDeckLandingApplier {
             angularVelocityBlocksPerSecond = ship.angularVelocity,
             comWorld = com,
             deckYInShip = deckY,
-            groundPitchDeg = 4.0
+            groundPitchDeg = groundPitchDeg
         )
         val delta = ShipDeckBridge.deltaMovementToWrite(result)
         entity.setPos(result.position.x, result.position.y, result.position.z)
@@ -89,7 +93,7 @@ object ShipDeckLandingApplier {
         entity.xRot = result.pitchDeg.toFloat()
         setRoll.accept(result.rollDeg.toFloat())
         entity.setOnGround(result.onGround)
-        return ShipDeckBridge.vsDragSuppressedForLandedPlane()
+        return result.onGround && ShipDeckBridge.vsDragSuppressedForLandedPlane()
     }
 
     private fun findDeckYInShip(entity: Entity, ship: Ship): Double? {

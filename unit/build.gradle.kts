@@ -19,6 +19,10 @@ sourceSets {
         kotlin {
             srcDir("../common/src/main/kotlin/org/valkyrienskies/eureka/math")
         }
+        java {
+            srcDir("../common/src/main/java")
+            include("org/valkyrienskies/eureka/mixin/MixinModPresence.java")
+        }
     }
 }
 

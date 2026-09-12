@@ -145,6 +145,39 @@ object ShipDeckLanding {
         )
     }
 
+    /**
+     * True only when the plane is in deck contact. Nearby / above a ship must
+     * not run landing correction (that glues velocity to the ship).
+     */
+    fun shouldApplyLandingCorrection(signedPenetration: Double): Boolean {
+        return signedPenetration >= -CONTACT_SNAP
+    }
+
+    /**
+     * Parked (idle) planes are carried with the ship. Throttle, taxi input, or
+     * engine target means treat the deck like land: keep relative speed so the
+     * plane can roll and take off.
+     */
+    fun enginesIdle(
+        enginePower: Double = 0.0,
+        engineTarget: Double = 0.0,
+        taxiInput: Double = 0.0,
+        throttle: Double = 0.0
+    ): Boolean {
+        return enginePower <= IDLE_EPS &&
+            engineTarget <= IDLE_EPS &&
+            abs(taxiInput) <= IDLE_EPS &&
+            throttle <= IDLE_EPS
+    }
+
+    fun enginesIdleFromVehicle(vehicle: Any): Boolean {
+        val enginePower = numberMethod(vehicle, "getEnginePower")
+        val engineTarget = numberMethod(vehicle, "getEngineTarget")
+        val throttle = numberMethod(vehicle, "getThrottle")
+        val taxiInput = interpolatedAxis(vehicle, "pressingInterpolatedZ")
+        return enginesIdle(enginePower, engineTarget, taxiInput, throttle)
+    }
+
     fun signedPenetration(plane: PlaneState, ship: ShipFrame): Double {
         var minShipY = Double.POSITIVE_INFINITY
         for (aabb in worldCollisionAabbs(plane)) {
@@ -251,6 +284,31 @@ object ShipDeckLanding {
         return plane.copy(pitchDeg = newPitch, rollDeg = newRoll)
     }
 
+    private fun numberMethod(target: Any, name: String): Double {
+        val method = target.javaClass.methods.firstOrNull { it.name == name && it.parameterCount == 0 }
+            ?: return 0.0
+        val value = method.invoke(target) ?: return 0.0
+        return (value as? Number)?.toDouble() ?: 0.0
+    }
+
+    private fun interpolatedAxis(target: Any, fieldName: String): Double {
+        var cls: Class<*>? = target.javaClass
+        while (cls != null) {
+            val field = try {
+                cls.getDeclaredField(fieldName)
+            } catch (_: NoSuchFieldException) {
+                null
+            }
+            if (field != null) {
+                field.isAccessible = true
+                val holder = field.get(target) ?: return 0.0
+                return numberMethod(holder, "getSmooth")
+            }
+            cls = cls.superclass
+        }
+        return 0.0
+    }
+
     private fun forEachCorner(aabb: WorldAabb, consumer: (Double, Double, Double) -> Unit) {
         consumer(aabb.minX, aabb.minY, aabb.minZ)
         consumer(aabb.minX, aabb.minY, aabb.maxZ)
@@ -265,5 +323,6 @@ object ShipDeckLanding {
     const val ORIENTATION_LERP = 0.9
     const val CONTACT_SNAP = 0.08
     const val ON_GROUND_SLOP = 0.06
+    const val IDLE_EPS = 0.05
 }
 

@@ -33,7 +33,7 @@ public abstract class MixinImmersiveAircraftVehicle {
     @Unique
     private boolean eureka$landedOnShip;
 
-    @Inject(method = "tick()V", at = @At("TAIL"))
+    @Inject(method = {"tick()V", "m_8119_()V"}, at = @At("TAIL"))
     private void vs$correctLandedPlaneOnShip(final CallbackInfo ci) {
         final Entity entity = (Entity) (Object) this;
         final float currentRoll = this.roll;

@@ -4,6 +4,7 @@ import org.joml.Matrix4d
 import org.joml.Quaterniond
 import org.joml.Vector3d
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.math.abs
@@ -15,6 +16,106 @@ import kotlin.math.max
  * input). Does not reimplement the correction, mock it, or start from an already-fixed pose.
  */
 class ShipDeckLandingTest {
+
+    @Test
+    fun parkedVehicleIsIdleAndTakeoffCommandsAreNot() {
+        assertTrue(ShipDeckLanding.enginesIdle())
+        assertTrue(
+            ShipDeckLanding.enginesIdleFromVehicle(Any()),
+            "unknown vehicle with no engine API must park (idle)"
+        )
+        assertFalse(
+            ShipDeckLanding.enginesIdle(engineTarget = 1.0),
+            "IA full throttle is takeoff, same as land"
+        )
+        assertFalse(
+            ShipDeckLanding.enginesIdle(taxiInput = 1.0),
+            "IA ground push (W) is taxi, same as land"
+        )
+        assertFalse(
+            ShipDeckLanding.enginesIdle(throttle = 3.0),
+            "Simple Planes throttle > 0 is takeoff"
+        )
+        assertFalse(
+            ShipDeckLanding.enginesIdleFromVehicle(FakeImmersiveAircraft(engineTarget = 1.0f))
+        )
+        assertFalse(
+            ShipDeckLanding.enginesIdleFromVehicle(FakeSimplePlanes(throttle = 3))
+        )
+        assertFalse(
+            ShipDeckLanding.enginesIdleFromVehicle(FakeTaxiInput(1.0f))
+        )
+    }
+
+    @Test
+    fun throttledPlaneOnDeckKeepsRelativeTakeoffVelocityAndCanLeave() {
+        val phys = physicsShip()
+        val takeoffVel = Vector3d(0.0, 0.05, 0.30)
+        val idleGlued = correctOnDeck(
+            restOnDeck(phys).copy(velocity = Vector3d(takeoffVel)),
+            phys
+        )
+        assertEquals(0.0, idleGlued.velocity.z, 1e-6, "idle glue still overwrites thrust")
+        assertEquals(0.0, idleGlued.velocity.y, 1e-6)
+
+        var plane = restOnDeck(phys).copy(enginesIdle = false, velocity = Vector3d(takeoffVel))
+        val throttled = correctOnDeck(plane, phys)
+        assertEquals(takeoffVel.z, throttled.velocity.z, 1e-6)
+        assertEquals(takeoffVel.y, throttled.velocity.y, 1e-6)
+
+        var leftDeck = false
+        repeat(TICKS) {
+            plane = plane.copy(
+                enginesIdle = false,
+                velocity = Vector3d(takeoffVel),
+                position = Vector3d(plane.position).add(takeoffVel)
+            )
+            val result = correctOnDeck(plane, phys)
+            plane = plane.copy(
+                position = result.position,
+                velocity = ShipDeckBridge.deltaMovementToWrite(result),
+                yawDeg = result.yawDeg,
+                pitchDeg = result.pitchDeg,
+                rollDeg = result.rollDeg,
+                enginesIdle = false
+            )
+            val pen = ShipDeckLanding.signedPenetration(plane, frame(phys))
+            if (!ShipDeckLanding.shouldApplyLandingCorrection(pen)) {
+                leftDeck = true
+            }
+        }
+        assertTrue(leftDeck, "throttled plane must be able to leave the deck like land takeoff")
+    }
+
+    @Test
+    fun flyingNearOrAboveDeckIsNotTreatedAsLanded() {
+        val phys = physicsShip()
+        val onDeck = restOnDeck(phys)
+        val onDeckPen = ShipDeckLanding.signedPenetration(onDeck, frame(phys))
+        assertTrue(
+            ShipDeckLanding.shouldApplyLandingCorrection(onDeckPen),
+            "resting on deck must still land (pen=$onDeckPen)"
+        )
+
+        val twoMetersUp = onDeck.copy(
+            position = Vector3d(onDeck.position).add(0.0, 2.0, 0.0)
+        )
+        val flyingPen = ShipDeckLanding.signedPenetration(twoMetersUp, frame(phys))
+        assertTrue(flyingPen < -0.5, "sanity: 2m above deck is not contact, pen=$flyingPen")
+        assertFalse(
+            ShipDeckLanding.shouldApplyLandingCorrection(flyingPen),
+            "flying 2m above a ship must not be glued (pen=$flyingPen)"
+        )
+
+        val beside = onDeck.copy(
+            position = Vector3d(onDeck.position).add(4.0, 1.0, 0.0)
+        )
+        val besidePen = ShipDeckLanding.signedPenetration(beside, frame(phys))
+        assertFalse(
+            ShipDeckLanding.shouldApplyLandingCorrection(besidePen),
+            "flying beside a ship must not be glued (pen=$besidePen)"
+        )
+    }
 
     @Test
     fun identityShipIdlePlaneStaysOnDeckWithoutFlipping() {
@@ -106,6 +207,55 @@ class ShipDeckLandingTest {
     }
 
     @Test
+    fun simplePlanesWorldSpaceLandingOnTiltedShipIsCorrected() {
+        val phys = physicsShip(rotation = Quaterniond().rotateZ(Math.toRadians(12.0)))
+        val spPitch = 5.0
+        var plane = restOnDeck(phys).copy(extraBoxes = emptyList())
+        var maxAbsRelPitchErr = 0.0
+        var maxAbsRelRoll = 0.0
+        var maxAbsPen = 0.0
+
+        repeat(TICKS) {
+            val afterSp = ShipDeckLanding.immersiveAircraftWorldSpaceLandingStep(
+                plane, spPitch, onGround = true
+            )
+            val damped = afterSp.copy(velocity = Vector3d(afterSp.velocity).mul(0.75))
+            val moved = damped.copy(position = Vector3d(damped.position).add(damped.velocity))
+            val result = ShipDeckBridge.correctLandedPlaneForEntityTick(
+                plane = moved,
+                shipToWorld = phys.shipToWorld(),
+                worldToShip = phys.worldToShip(),
+                rotation = phys.rotation,
+                linearVelocityBlocksPerSecond = phys.linearBps,
+                angularVelocityBlocksPerSecond = phys.angularBps,
+                comWorld = phys.com,
+                deckYInShip = phys.deckY,
+                groundPitchDeg = spPitch
+            )
+            val written = ShipDeckBridge.deltaMovementToWrite(result)
+            plane = plane.copy(
+                position = result.position,
+                velocity = written,
+                yawDeg = result.yawDeg,
+                pitchDeg = result.pitchDeg,
+                rollDeg = result.rollDeg,
+                extraBoxes = emptyList()
+            )
+            val rel = ShipDeckLanding.deckRelativeEuler(
+                plane.yawDeg, plane.pitchDeg, plane.rollDeg, phys.rotation
+            )
+            maxAbsRelPitchErr = max(maxAbsRelPitchErr, abs(rel.pitchDeg - (-spPitch)))
+            maxAbsRelRoll = max(maxAbsRelRoll, abs(rel.rollDeg))
+            maxAbsPen = max(maxAbsPen, abs(ShipDeckLanding.signedPenetration(plane, frame(phys))))
+        }
+
+        assertTrue(maxAbsRelPitchErr < BACKFLIP_BOUND, "simple planes pitch err $maxAbsRelPitchErr")
+        assertTrue(maxAbsRelRoll < BACKFLIP_BOUND, "simple planes roll $maxAbsRelRoll")
+        assertTrue(maxAbsPen < PENETRATION_BOUND, "simple planes penetration $maxAbsPen")
+        assertTrue(ShipDeckBridge.vsDragSuppressedForLandedPlane())
+    }
+
+    @Test
     fun translatingShipCarriesIdlePlaneWithoutFlipOrClip() {
         val shipVelBps = Vector3d(4.0, 0.0, 0.0)
         var phys = physicsShip(linearBps = shipVelBps)
@@ -150,6 +300,23 @@ class ShipDeckLandingTest {
         )
         assertEquals(shipVelBps.x * ShipDeckBridge.SECONDS_PER_TICK, lastWrittenX, 0.02)
         assertTrue(abs(lastWrittenX - shipVelBps.x) > 1.0, "wrote blocks/s into deltaMovement")
+    }
+
+    private fun correctOnDeck(
+        plane: ShipDeckLanding.PlaneState,
+        phys: PhysicsShip
+    ): ShipDeckLanding.Result {
+        return ShipDeckBridge.correctLandedPlaneForEntityTick(
+            plane = plane,
+            shipToWorld = phys.shipToWorld(),
+            worldToShip = phys.worldToShip(),
+            rotation = phys.rotation,
+            linearVelocityBlocksPerSecond = phys.linearBps,
+            angularVelocityBlocksPerSecond = phys.angularBps,
+            comWorld = phys.com,
+            deckYInShip = phys.deckY,
+            groundPitchDeg = GROUND_PITCH
+        )
     }
 
     private fun hostileThenCorrect(plane: ShipDeckLanding.PlaneState, phys: PhysicsShip): ShipDeckLanding.PlaneState {
@@ -236,6 +403,24 @@ class ShipDeckLandingTest {
     ) {
         fun shipToWorld(): Matrix4d = Matrix4d().translationRotate(com.x, com.y, com.z, rotation)
         fun worldToShip(): Matrix4d = Matrix4d(shipToWorld()).invert()
+    }
+
+    private class FakeImmersiveAircraft(private val engineTarget: Float) {
+        fun getEnginePower(): Float = 0.0f
+        fun getEngineTarget(): Float = engineTarget
+    }
+
+    private class FakeSimplePlanes(private val throttle: Int) {
+        fun getThrottle(): Int = throttle
+    }
+
+    private class FakeTaxiInput(z: Float) {
+        @JvmField
+        val pressingInterpolatedZ = SmoothAxis(z)
+    }
+
+    private class SmoothAxis(private val value: Float) {
+        fun getSmooth(): Float = value
     }
 
     companion object {

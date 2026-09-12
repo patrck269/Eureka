@@ -7,11 +7,12 @@ import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
 /**
- * Skips Immersive Aircraft compat mixins when that mod is not present.
+ * Skips Immersive Aircraft / Simple Planes compat mixins when those mods are not present.
  */
 public class EurekaMixinConfigPlugin implements IMixinConfigPlugin {
 
     private static final String IA_VEHICLE = "immersive_aircraft.entity.VehicleEntity";
+    private static final String SIMPLE_PLANES = "xyz.przemyk.simpleplanes.entities.PlaneEntity";
 
     @Override
     public void onLoad(final String mixinPackage) {
@@ -27,16 +28,14 @@ public class EurekaMixinConfigPlugin implements IMixinConfigPlugin {
         if (mixinClassName.contains("MixinImmersiveAircraftVehicle")) {
             return classPresent(IA_VEHICLE);
         }
+        if (mixinClassName.contains("MixinSimplePlanesVehicle")) {
+            return classPresent(SIMPLE_PLANES);
+        }
         return true;
     }
 
     private static boolean classPresent(final String name) {
-        try {
-            Class.forName(name, false, EurekaMixinConfigPlugin.class.getClassLoader());
-            return true;
-        } catch (final ClassNotFoundException | NoClassDefFoundError ignored) {
-            return false;
-        }
+        return MixinModPresence.present(EurekaMixinConfigPlugin.class.getClassLoader(), name);
     }
 
     @Override
