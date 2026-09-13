@@ -152,20 +152,41 @@ object ShipDeckLanding {
      * True only when the plane is in deck contact. Nearby / above a ship must
      * not run landing correction (that glues velocity to the ship).
      */
-    fun shouldApplyLandingCorrection(signedPenetration: Double): Boolean {
-        return signedPenetration >= -CONTACT_SNAP
+    fun shouldApplyLandingCorrection(
+        signedPenetration: Double,
+        captureMeters: Double = CONTACT_SNAP
+    ): Boolean {
+        return signedPenetration >= -captureMeters
     }
 
     /**
-     * Parked (idle) planes are carried with the ship. Throttle, taxi input, or
-     * engine target means treat the deck like land: keep relative speed so the
-     * plane can roll and take off.
-     */
-    /**
      * Occupied planes used vanilla IA + VS drag before the backflip glue.
-     * Only empty vehicles get deck correction.
+     * Only empty vehicles get deck correction. Catapult launch skips glue so
+     * the pad impulse is not eaten.
      */
-    fun shouldApplyDeckGlue(occupied: Boolean): Boolean = !occupied
+    fun shouldApplyDeckGlue(occupied: Boolean, catapultLaunch: Boolean = false): Boolean {
+        return !occupied && !catapultLaunch
+    }
+
+    fun weldWorldPosition(localShip: Vector3dc, shipToWorld: Matrix4dc): Vector3d {
+        return shipToWorld.transformPosition(Vector3d(localShip))
+    }
+
+    /**
+     * Parked-weld world position is always the live ship transform. Kinematic
+     * carry from [correct] is first-order in velocity and lags a rotating
+     * >100 m/s deck by meters per tick.
+     */
+    fun positionToWriteForParkedWeld(
+        weldLocal: Vector3dc,
+        shipToWorld: Matrix4dc
+    ): Vector3d {
+        return weldWorldPosition(weldLocal, shipToWorld)
+    }
+
+    fun shouldOverwriteWeldWithKinematicCarry(): Boolean = false
+
+    fun unoccupiedWeldFreezesWorldVelocity(): Boolean = true
 
     fun enginesIdle(
         enginePower: Double = 0.0,
@@ -175,11 +196,11 @@ object ShipDeckLanding {
         occupied: Boolean = true,
         relativeSpeed: Double = 0.0
     ): Boolean {
-        if (relativeSpeed >= PARK_RELATIVE_SPEED) {
-            return false
-        }
         if (!occupied) {
             return true
+        }
+        if (relativeSpeed >= PARK_RELATIVE_SPEED) {
+            return false
         }
         return enginePower <= IDLE_EPS &&
             engineTarget <= IDLE_EPS &&
@@ -343,8 +364,10 @@ object ShipDeckLanding {
 
     const val ORIENTATION_LERP = 0.9
     const val CONTACT_SNAP = 0.08
+    const val UNOCCUPIED_CAPTURE = 16.0
     const val ON_GROUND_SLOP = 0.06
     const val IDLE_EPS = 0.05
     const val PARK_RELATIVE_SPEED = 0.25
+    const val LAUNCH_TAG = "ia_catapult_launch"
 }
 

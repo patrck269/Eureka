@@ -74,13 +74,43 @@ class MixinWiringTest {
     }
 
     @Test
-    fun applierReadsEngineIdleFromVehicleInsteadOfForcingParked() {
+    fun applierWeldsUnoccupiedPlanesAndSkipsOccupied() {
         val applier = Files.readString(applierKt())
-        assertFalse(
-            applier.contains("enginesIdle = true"),
-            "hardcoding enginesIdle=true discards IA/SP thrust and blocks takeoff from the deck"
+        assertTrue(applier.contains("shouldApplyDeckGlue"))
+        assertTrue(
+            applier.contains("positionToWriteForParkedWeld"),
+            "parked write must use live shipToWorld*local, not last-tick velocity"
         )
-        assertTrue(applier.contains("enginesIdleFromVehicle"))
+        assertTrue(applier.contains("enginesIdle = true"), "empty parked planes are always idle")
+        assertTrue(applier.contains("LAUNCH_TAG"))
+        assertTrue(applier.contains("pinAllWelds"))
+        assertTrue(applier.contains("Vec3.ZERO"), "IA must not inherit ship velocity before its own move()")
+        assertFalse(
+            applier.contains("integrateShipCarryIntoPosition = true"),
+            "kinematic carry after the pin is what slides parked planes at 100 m/s"
+        )
+    }
+
+    @Test
+    fun weldRunsAfterAircraftMoveAndAfterShipPhysics() {
+        val json = Files.readString(mixinJson())
+        assertTrue(json.contains("MixinServerLevelShipDeckWeld"))
+        assertTrue(json.contains("MixinClientLevelShipDeckWeld"))
+        assertTrue(json.contains("MixinMinecraftServerShipDeckWeld"))
+        assertTrue(json.contains("MixinMinecraftShipDeckWeld"))
+        val serverLevel = Files.readString(serverLevelMixin())
+        assertTrue(serverLevel.contains("tickNonPassenger"))
+        assertTrue(serverLevel.contains("ShipDeckVehicleTick"))
+        val clientLevel = Files.readString(clientLevelMixin())
+        assertTrue(clientLevel.contains("tickNonPassenger"))
+        val server = Files.readString(minecraftServerMixin())
+        assertTrue(server.contains("priority = 400"))
+        assertTrue(server.contains("pinAllWelds"))
+        val client = Files.readString(minecraftMixin())
+        assertTrue(client.contains("priority = 400"))
+        assertTrue(client.contains("pinAllWelds"))
+        val entityMixin = Files.readString(entityMixin())
+        assertTrue(entityMixin.contains("tick()V"), "Entity.tick TAIL still zeroes velocity before IA move()")
     }
 
     @Test
@@ -130,6 +160,26 @@ class MixinWiringTest {
     private fun entityMixin(): Path = firstExisting(
         Path.of("..", "common", "src", "main", "java", "org", "valkyrienskies", "eureka", "mixin", "MixinEntityShipDeckLanding.java"),
         Path.of("common", "src", "main", "java", "org", "valkyrienskies", "eureka", "mixin", "MixinEntityShipDeckLanding.java")
+    )
+
+    private fun serverLevelMixin(): Path = firstExisting(
+        Path.of("..", "common", "src", "main", "java", "org", "valkyrienskies", "eureka", "mixin", "MixinServerLevelShipDeckWeld.java"),
+        Path.of("common", "src", "main", "java", "org", "valkyrienskies", "eureka", "mixin", "MixinServerLevelShipDeckWeld.java")
+    )
+
+    private fun clientLevelMixin(): Path = firstExisting(
+        Path.of("..", "common", "src", "main", "java", "org", "valkyrienskies", "eureka", "mixin", "client", "MixinClientLevelShipDeckWeld.java"),
+        Path.of("common", "src", "main", "java", "org", "valkyrienskies", "eureka", "mixin", "client", "MixinClientLevelShipDeckWeld.java")
+    )
+
+    private fun minecraftServerMixin(): Path = firstExisting(
+        Path.of("..", "common", "src", "main", "java", "org", "valkyrienskies", "eureka", "mixin", "MixinMinecraftServerShipDeckWeld.java"),
+        Path.of("common", "src", "main", "java", "org", "valkyrienskies", "eureka", "mixin", "MixinMinecraftServerShipDeckWeld.java")
+    )
+
+    private fun minecraftMixin(): Path = firstExisting(
+        Path.of("..", "common", "src", "main", "java", "org", "valkyrienskies", "eureka", "mixin", "client", "MixinMinecraftShipDeckWeld.java"),
+        Path.of("common", "src", "main", "java", "org", "valkyrienskies", "eureka", "mixin", "client", "MixinMinecraftShipDeckWeld.java")
     )
 
     private fun vehicleTick(): Path = firstExisting(

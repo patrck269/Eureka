@@ -49,9 +49,9 @@ class ShipDeckLandingTest {
             ShipDeckLanding.enginesIdle(engineTarget = 1.0, occupied = false),
             "unoccupied plane is parked even if engines are still spinning down"
         )
-        assertFalse(
-            ShipDeckLanding.enginesIdle(occupied = false, relativeSpeed = 1.5),
-            "catapult / takeoff speed must not be glued back to the ship"
+        assertTrue(
+            ShipDeckLanding.enginesIdle(occupied = false, relativeSpeed = 5.0),
+            "empty planes stay parked even when the ship is at 100 m/s (5 blocks/tick)"
         )
         assertFalse(
             ShipDeckLanding.shouldApplyDeckGlue(occupied = true),
@@ -61,6 +61,110 @@ class ShipDeckLandingTest {
             ShipDeckLanding.shouldApplyDeckGlue(occupied = false),
             "empty parked planes still need deck glue"
         )
+        assertFalse(
+            ShipDeckLanding.shouldApplyDeckGlue(occupied = false, catapultLaunch = true),
+            "catapult launch tag skips glue so the impulse is not eaten"
+        )
+        assertTrue(
+            ShipDeckLanding.shouldApplyLandingCorrection(-2.0, ShipDeckLanding.UNOCCUPIED_CAPTURE),
+            "empty planes 2m off the deck after a 100 m/s tick must still be recaptured"
+        )
+        assertFalse(
+            ShipDeckLanding.shouldApplyLandingCorrection(-2.0),
+            "occupied/default contact is still 8cm"
+        )
+    }
+
+    @Test
+    fun unoccupiedWeldTracksShipAtHundredMetersPerSecond() {
+        val start = physicsShip()
+        val local = Vector3d(1.0, start.deckY + 0.05, -2.0)
+        val world0 = ShipDeckLanding.weldWorldPosition(local, start.shipToWorld())
+        val moved = physicsShip(linearBps = Vector3d(100.0, 0.0, 0.0))
+        // Same local coords on a ship that has translated 100 m/s * 1s = 100 blocks in world
+        // if we only had 1s of translation on the transform. Use an explicit translated matrix.
+        val translated = Matrix4d(start.shipToWorld()).translate(100.0, 0.0, 0.0)
+        val world1 = ShipDeckLanding.weldWorldPosition(local, translated)
+        assertEquals(100.0, world1.x - world0.x, 1e-6, "weld must follow ship transform, not last-tick velocity")
+        assertEquals(world0.y, world1.y, 1e-6)
+        assertEquals(world0.z, world1.z, 1e-6)
+        assertTrue(moved.linearBps.x >= 100.0)
+    }
+
+    @Test
+    fun parkedWeldIgnoresKinematicCarryAtExtremeSpeedAndRotation() {
+        val local = Vector3d(3.0, 0.05, 1.0)
+        val phys = physicsShip(
+            com = Vector3d(10.0, 64.0, -5.0),
+            rotation = Quaterniond().rotateZ(Math.toRadians(8.0)).rotateY(Math.toRadians(40.0)),
+            linearBps = Vector3d(120.0, 15.0, -80.0),
+            angularBps = Vector3d(0.5, 4.0, -0.3)
+        )
+        val weldPos = ShipDeckLanding.weldWorldPosition(local, phys.shipToWorld())
+        val leftoverIa = Vector3d(2.0, -0.4, 1.5)
+        val plane = restOnDeck(phys).copy(
+            position = Vector3d(weldPos),
+            velocity = leftoverIa,
+            enginesIdle = true
+        )
+        val kinematic = correctOnDeck(plane, phys)
+        assertTrue(
+            kinematic.position.distance(weldPos) > 0.5,
+            "sanity: 100 m/s kinematic carry is not a weld (drift=${kinematic.position.distance(weldPos)})"
+        )
+        val written = ShipDeckLanding.positionToWriteForParkedWeld(
+            local,
+            phys.shipToWorld()
+        )
+        assertEquals(
+            0.0,
+            written.distance(weldPos),
+            1e-9,
+            "parked write must be live shipToWorld*local, not velocity integration"
+        )
+        assertTrue(ShipDeckLanding.unoccupiedWeldFreezesWorldVelocity())
+        assertFalse(ShipDeckLanding.shouldOverwriteWeldWithKinematicCarry())
+    }
+
+    @Test
+    fun parkedWeldTracksManeuveringShipAtHundredMetersPerSecond() {
+        val local = Vector3d(2.0, 0.05, -3.0)
+        var com = Vector3d()
+        var yaw = 0.0
+        val linearBps = Vector3d(120.0, 8.0, -90.0)
+        val yawRate = 3.0
+        repeat(20) { tick ->
+            yaw += yawRate * ShipDeckBridge.SECONDS_PER_TICK
+            com = Vector3d(com).add(Vector3d(linearBps).mul(ShipDeckBridge.SECONDS_PER_TICK))
+            val phys = physicsShip(
+                com = com,
+                rotation = Quaterniond().rotateY(yaw),
+                linearBps = linearBps,
+                angularBps = Vector3d(0.0, yawRate, 0.0)
+            )
+            val weldPos = ShipDeckLanding.weldWorldPosition(local, phys.shipToWorld())
+            val afterIa = Vector3d(weldPos).add(1.2, -0.3, 0.8)
+            val plane = restOnDeck(phys).copy(
+                position = afterIa,
+                velocity = Vector3d(6.0, 0.4, -4.5),
+                enginesIdle = true
+            )
+            val kinematic = correctOnDeck(plane, phys)
+            assertTrue(
+                kinematic.position.distance(weldPos) > 0.25,
+                "tick $tick sanity: IA leftover + carry must not equal the weld"
+            )
+            val written = ShipDeckLanding.positionToWriteForParkedWeld(
+                local,
+                phys.shipToWorld()
+            )
+            assertEquals(
+                0.0,
+                written.distance(weldPos),
+                1e-7,
+                "tick $tick parked weld drifted ${written.distance(weldPos)} at 120 m/s"
+            )
+        }
     }
 
     @Test

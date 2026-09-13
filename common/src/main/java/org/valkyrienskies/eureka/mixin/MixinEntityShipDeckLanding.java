@@ -11,6 +11,10 @@ import org.valkyrienskies.eureka.compat.immersiveaircraft.ShipDeckVehicleTick;
  * Deck landing must run from a vanilla Entity mixin. Injecting into Immersive
  * Aircraft / Simple Planes copies Eureka class refs into those mods' modules,
  * which Forge's ModuleClassLoader cannot load (dedicated CNFDE).
+ *
+ * Entity.tick TAIL is inside VehicleEntity.tick, before IA updateVelocity/move.
+ * This pass zeroes world velocity so IA cannot inherit last-tick ship speed
+ * (5+ blocks/tick at 100 m/s). MixinServerLevelShipDeckWeld re-pins after move.
  */
 @Mixin(Entity.class)
 public abstract class MixinEntityShipDeckLanding {
