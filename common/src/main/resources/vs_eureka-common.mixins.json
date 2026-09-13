@@ -5,6 +5,7 @@
   "plugin": "org.valkyrienskies.eureka.mixin.EurekaMixinConfigPlugin",
   "mixins": [
     "MixinEntityShipDeckLanding",
+    "MixinEntitySectionStorageSafe",
     "compat.MixinImmersiveAircraftVehicle",
     "compat.MixinSimplePlanesVehicle"
   ],

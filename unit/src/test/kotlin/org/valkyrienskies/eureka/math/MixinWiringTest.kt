@@ -12,6 +12,7 @@ class MixinWiringTest {
     fun entityMixinRunsShipDeckTickSoIaModuleDoesNotLoadEurekaClasses() {
         val json = Files.readString(mixinJson())
         assertTrue(json.contains("MixinEntityShipDeckLanding"))
+        assertTrue(json.contains("MixinEntitySectionStorageSafe"))
         val entityMixin = Files.readString(entityMixin())
         assertTrue(entityMixin.contains("net.minecraft.world.entity.Entity"))
         assertTrue(entityMixin.contains("tick()V"))
