@@ -204,13 +204,10 @@ object ShipDeckLanding {
         return if (catapult) deckTopY else deckTopY + DECK_SIT
     }
 
-    /** VS scales F5 zoom with ship AABB (often 40–80 blocks). Cap so the camera stays in loaded chunks. */
-    const val SHIP_THIRD_PERSON_MAX = 8.0
-
+    /** Pass-through: do not cap VS ship F5 zoom (large Eureka ships need the full pullback). */
     @JvmStatic
-    @JvmOverloads
-    fun capShipThirdPersonDistance(distance: Double, maxDistance: Double = SHIP_THIRD_PERSON_MAX): Double {
-        return if (distance > maxDistance) maxDistance else distance
+    fun capShipThirdPersonDistance(distance: Double): Double {
+        return distance
     }
 
     /**

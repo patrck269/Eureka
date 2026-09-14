@@ -12,7 +12,6 @@
     "compat.MixinSimplePlanesVehicle"
   ],
   "client": [
-    "client.MixinCameraShipThirdPerson",
     "client.MixinClientLevelShipDeckWeld",
     "client.MixinMinecraftShipDeckWeld",
     "client.PlayerEntityModelMixin"

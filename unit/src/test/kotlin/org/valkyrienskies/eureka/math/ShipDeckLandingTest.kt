@@ -108,11 +108,10 @@ class ShipDeckLandingTest {
     }
 
     @Test
-    fun shipThirdPersonZoomIsCappedSoCameraStaysInLoadedChunks() {
-        assertEquals(8.0, ShipDeckLanding.capShipThirdPersonDistance(75.0), 1e-9)
+    fun shipThirdPersonZoomIsNotCapped() {
+        assertEquals(75.0, ShipDeckLanding.capShipThirdPersonDistance(75.0), 1e-9)
         assertEquals(4.0, ShipDeckLanding.capShipThirdPersonDistance(4.0), 1e-9)
-        assertEquals(8.0, ShipDeckLanding.capShipThirdPersonDistance(8.0), 1e-9)
-        assertTrue(ShipDeckLanding.capShipThirdPersonDistance(60.0) < 16.0)
+        assertEquals(60.0, ShipDeckLanding.capShipThirdPersonDistance(60.0), 1e-9)
     }
 
     @Test

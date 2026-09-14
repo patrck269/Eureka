@@ -115,7 +115,7 @@ class MixinWiringTest {
         assertTrue(json.contains("MixinClientLevelShipDeckWeld"))
         assertTrue(json.contains("MixinMinecraftServerShipDeckWeld"))
         assertTrue(json.contains("MixinMinecraftShipDeckWeld"))
-        assertTrue(json.contains("MixinCameraShipThirdPerson"))
+        assertFalse(json.contains("MixinCameraShipThirdPerson"), "do not cap VS ship F5 zoom")
         val serverLevel = Files.readString(serverLevelMixin())
         assertTrue(serverLevel.contains("tickNonPassenger"))
         assertTrue(serverLevel.contains("ShipDeckVehicleTick"))
