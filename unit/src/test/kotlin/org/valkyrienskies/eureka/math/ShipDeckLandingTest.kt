@@ -88,7 +88,11 @@ class ShipDeckLandingTest {
             "empty collision must not become a full-block rest")
         assertEquals(0.5, ShipDeckLanding.collisionMaxYOrSkip(false, 0.5)!!, 1e-9)
         assertTrue(ShipDeckLanding.isCatapultPad("immersive_aircraft:catapult"))
+        assertTrue(ShipDeckLanding.isCatapultPad("catapult"))
         assertFalse(ShipDeckLanding.isCatapultPad("minecraft:oak_slab"))
+        assertTrue(ShipDeckLanding.isFlushSit(0.5, false))
+        assertTrue(ShipDeckLanding.isFlushSit(1.0, true))
+        assertFalse(ShipDeckLanding.isFlushSit(1.0, false))
         val padTop = ShipDeckLanding.collisionTopY(
             10,
             ShipDeckLanding.collisionMaxYOrSkip(false, 0.5)!!

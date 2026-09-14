@@ -184,7 +184,12 @@ object ShipDeckLanding {
     }
 
     fun isCatapultPad(blockId: String): Boolean {
-        return blockId == "immersive_aircraft:catapult"
+        val path = if (blockId.contains(':')) blockId.substringAfterLast(':') else blockId
+        return path == "catapult"
+    }
+
+    fun isFlushSit(collisionMaxY: Double, catapult: Boolean): Boolean {
+        return catapult || (collisionMaxY > 1.0e-6 && collisionMaxY <= 0.75)
     }
 
     fun catapultRestY(blockY: Int): Double {

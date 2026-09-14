@@ -93,6 +93,7 @@ class MixinWiringTest {
         assertTrue(applier.contains("isCatapultPad"), "catapult pads use 0.5 rest")
         assertTrue(applier.contains("weldSitY"), "catapult sit Y must match IA dock")
         assertTrue(applier.contains("CATAPULT_HEIGHT"))
+        assertTrue(applier.contains("dx in -1..1"), "must find a catapult in a 3x3, not only the entity column")
         assertFalse(
             Regex("isCatapultPad\\(support\\.blockId\\)\\) \\{\\s*welds\\.remove\\(entity\\)\\s*return false").containsMatchIn(applier),
             "skipping glue on a catapult fights VS drag and the pad clamp"

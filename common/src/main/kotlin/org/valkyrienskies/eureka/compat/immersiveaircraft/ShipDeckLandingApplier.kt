@@ -67,6 +67,8 @@ object ShipDeckLandingApplier {
 
         val support = findSupportInShip(entity, ship)
         val onCatapult = support != null && ShipDeckLanding.isCatapultPad(support.blockId)
+        val flushSit = support != null &&
+            ShipDeckLanding.isFlushSit(support.collisionMaxY, onCatapult)
         val deckY = support?.let { ShipDeckLanding.collisionTopY(it.blockY, it.collisionMaxY) }
             ?: existing?.local?.y
             ?: return false
@@ -80,7 +82,7 @@ object ShipDeckLandingApplier {
             shipId = ship.id,
             local = worldToShip.transformPosition(Vector3d(entity.x, entity.y, entity.z))
         )
-        weld.local.y = ShipDeckLanding.weldSitY(deckY, onCatapult)
+        weld.local.y = ShipDeckLanding.weldSitY(deckY, flushSit)
         if (existing == null) {
             val probe = entityToPlane(entity, roll, extraShapes, enginesIdle = true)
             val probeFrame = ShipDeckBridge.shipFrameForEntityTick(
@@ -217,24 +219,33 @@ object ShipDeckLandingApplier {
     private fun findSupportInShip(entity: Entity, ship: Ship): Support? {
         val shipPos = ship.worldToShip.transformPosition(Vector3d(entity.x, entity.y + 0.1, entity.z))
         val level = entity.level()
-        for (dy in -2..16) {
-            val bp = BlockPos.containing(shipPos.x, shipPos.y - dy, shipPos.z)
-            val state = level.getBlockState(bp)
-            if (state.isAir) {
-                continue
+        var fallback: Support? = null
+        for (dx in -1..1) {
+            for (dz in -1..1) {
+                for (dy in -2..16) {
+                    val bp = BlockPos.containing(shipPos.x + dx, shipPos.y - dy, shipPos.z + dz)
+                    val state = level.getBlockState(bp)
+                    if (state.isAir) {
+                        continue
+                    }
+                    val id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.block).toString()
+                    if (ShipDeckLanding.isCatapultPad(id)) {
+                        return Support(bp.y, ShipDeckLanding.CATAPULT_HEIGHT, id)
+                    }
+                    if (fallback == null) {
+                        val shape = state.getCollisionShape(level, bp)
+                        val top = ShipDeckLanding.collisionMaxYOrSkip(
+                            shape.isEmpty,
+                            if (shape.isEmpty) 0.0 else shape.max(net.minecraft.core.Direction.Axis.Y)
+                        )
+                        if (top != null) {
+                            fallback = Support(bp.y, top, id)
+                        }
+                    }
+                }
             }
-            val id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.block).toString()
-            if (ShipDeckLanding.isCatapultPad(id)) {
-                return Support(bp.y, ShipDeckLanding.CATAPULT_HEIGHT, id)
-            }
-            val shape = state.getCollisionShape(level, bp)
-            val top = ShipDeckLanding.collisionMaxYOrSkip(
-                shape.isEmpty,
-                if (shape.isEmpty) 0.0 else shape.max(net.minecraft.core.Direction.Axis.Y)
-            ) ?: continue
-            return Support(bp.y, top, id)
         }
-        return null
+        return fallback
     }
 
     private fun worldAabbToLocal(
