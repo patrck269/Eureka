@@ -108,6 +108,14 @@ class ShipDeckLandingTest {
     }
 
     @Test
+    fun shipThirdPersonZoomIsCappedSoCameraStaysInLoadedChunks() {
+        assertEquals(8.0, ShipDeckLanding.capShipThirdPersonDistance(75.0), 1e-9)
+        assertEquals(4.0, ShipDeckLanding.capShipThirdPersonDistance(4.0), 1e-9)
+        assertEquals(8.0, ShipDeckLanding.capShipThirdPersonDistance(8.0), 1e-9)
+        assertTrue(ShipDeckLanding.capShipThirdPersonDistance(60.0) < 16.0)
+    }
+
+    @Test
     fun unoccupiedWeldTracksShipAtHundredMetersPerSecond() {
         val start = physicsShip()
         val local = Vector3d(1.0, start.deckY + 0.05, -2.0)
