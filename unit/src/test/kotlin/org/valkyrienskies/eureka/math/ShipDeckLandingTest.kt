@@ -76,6 +76,17 @@ class ShipDeckLandingTest {
     }
 
     @Test
+    fun unoccupiedLockOnHalfBlockPadRestsAtCollisionTopNotFullBlock() {
+        assertEquals(0.5, ShipDeckLanding.collisionTopY(0, 0.5), 1e-9)
+        assertEquals(64.5, ShipDeckLanding.collisionTopY(64, 0.5), 1e-9)
+        assertEquals(65.0, ShipDeckLanding.collisionTopY(64, 1.0), 1e-9)
+        assertTrue(
+            kotlin.math.abs(ShipDeckLanding.collisionTopY(64, 0.5) - 65.0) > 0.4,
+            "0.5 pad must not sit at blockY+1"
+        )
+    }
+
+    @Test
     fun unoccupiedWeldTracksShipAtHundredMetersPerSecond() {
         val start = physicsShip()
         val local = Vector3d(1.0, start.deckY + 0.05, -2.0)

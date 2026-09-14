@@ -65,7 +65,7 @@ object ShipDeckLandingApplier {
             return false
         }
 
-        val deckY = existing?.local?.y ?: findDeckYInShip(entity, ship) ?: return false
+        val deckY = findDeckYInShip(entity, ship) ?: existing?.local?.y ?: return false
         val transform = ship.transform
         val shipToWorld = Matrix4d(transform.shipToWorld)
         val worldToShip = Matrix4d(transform.worldToShip)
@@ -74,8 +74,9 @@ object ShipDeckLandingApplier {
 
         val weld = existing ?: Weld(
             shipId = ship.id,
-            local = worldToShip.transformPosition(Vector3d(entity.x, entity.y, entity.z)).also { it.y = deckY + 0.05 }
+            local = worldToShip.transformPosition(Vector3d(entity.x, entity.y, entity.z))
         )
+        weld.local.y = deckY + 0.05
         if (existing == null) {
             val probe = entityToPlane(entity, roll, extraShapes, enginesIdle = true)
             val probeFrame = ShipDeckBridge.shipFrameForEntityTick(
@@ -213,9 +214,12 @@ object ShipDeckLandingApplier {
         for (dy in -2..16) {
             val bp = BlockPos.containing(shipPos.x, shipPos.y - dy, shipPos.z)
             val state = level.getBlockState(bp)
-            if (!state.isAir) {
-                return bp.y + 1.0
+            if (state.isAir) {
+                continue
             }
+            val shape = state.getCollisionShape(level, bp)
+            val top = if (shape.isEmpty) 1.0 else shape.max(net.minecraft.core.Direction.Axis.Y)
+            return ShipDeckLanding.collisionTopY(bp.y, top)
         }
         return null
     }

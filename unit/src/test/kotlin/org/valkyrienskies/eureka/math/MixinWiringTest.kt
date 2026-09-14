@@ -89,6 +89,11 @@ class MixinWiringTest {
             applier.contains("integrateShipCarryIntoPosition = true"),
             "kinematic carry after the pin is what slides parked planes at 100 m/s"
         )
+        assertTrue(applier.contains("collisionTopY"), "0.5 pads must use voxel top, not a full block")
+        assertFalse(
+            applier.contains("bp.y + 1.0"),
+            "unoccupied lock must not rest at blockY+1 on a half-high catapult"
+        )
     }
 
     @Test

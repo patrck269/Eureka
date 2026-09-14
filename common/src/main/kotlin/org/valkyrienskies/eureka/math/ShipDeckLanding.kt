@@ -173,6 +173,14 @@ object ShipDeckLanding {
     }
 
     /**
+     * Rest Y in ship space is the collision top of the supporting block, not
+     * always {@code blockY + 1}. A 0.5-high catapult pad is {@code blockY + 0.5}.
+     */
+    fun collisionTopY(blockY: Int, collisionMaxYInBlock: Double): Double {
+        return blockY + collisionMaxYInBlock
+    }
+
+    /**
      * Parked-weld world position is always the live ship transform. Kinematic
      * carry from [correct] is first-order in velocity and lags a rotating
      * >100 m/s deck by meters per tick.
