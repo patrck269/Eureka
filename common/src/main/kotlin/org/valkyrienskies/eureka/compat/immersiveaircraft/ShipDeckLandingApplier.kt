@@ -44,11 +44,15 @@ object ShipDeckLandingApplier {
     ): Boolean {
         val occupied = entity.isVehicle
         val launched = entity.tags.contains(ShipDeckLanding.LAUNCH_TAG)
-        if (!ShipDeckLanding.shouldApplyDeckGlue(occupied, launched)) {
-            if (occupied || launched) {
+        if (launched && entity.deltaMovement.horizontalDistance() < 0.75) {
+            entity.removeTag(ShipDeckLanding.LAUNCH_TAG)
+        }
+        val stillLaunching = entity.tags.contains(ShipDeckLanding.LAUNCH_TAG)
+        if (!ShipDeckLanding.shouldApplyDeckGlue(occupied, stillLaunching)) {
+            if (occupied || stillLaunching) {
                 welds.remove(entity)
             }
-            if (launched) {
+            if (stillLaunching) {
                 val far = entity.level().getShipsIntersecting(entity.boundingBox.inflate(2.0, 2.0, 2.0)).none()
                 if (far) {
                     entity.removeTag(ShipDeckLanding.LAUNCH_TAG)
