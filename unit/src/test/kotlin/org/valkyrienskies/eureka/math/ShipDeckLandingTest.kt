@@ -84,6 +84,16 @@ class ShipDeckLandingTest {
             kotlin.math.abs(ShipDeckLanding.collisionTopY(64, 0.5) - 65.0) > 0.4,
             "0.5 pad must not sit at blockY+1"
         )
+        assertEquals(null, ShipDeckLanding.collisionMaxYOrSkip(true, 1.0),
+            "empty collision must not become a full-block rest")
+        assertEquals(0.5, ShipDeckLanding.collisionMaxYOrSkip(false, 0.5)!!, 1e-9)
+        assertTrue(ShipDeckLanding.isCatapultPad("immersive_aircraft:catapult"))
+        assertFalse(ShipDeckLanding.isCatapultPad("minecraft:oak_slab"))
+        val padTop = ShipDeckLanding.collisionTopY(
+            10,
+            ShipDeckLanding.collisionMaxYOrSkip(false, 0.5)!!
+        )
+        assertEquals(10.5, padTop, 1e-9)
     }
 
     @Test

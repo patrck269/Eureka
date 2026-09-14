@@ -90,9 +90,14 @@ class MixinWiringTest {
             "kinematic carry after the pin is what slides parked planes at 100 m/s"
         )
         assertTrue(applier.contains("collisionTopY"), "0.5 pads must use voxel top, not a full block")
+        assertTrue(applier.contains("isCatapultPad"), "Eureka must not weld a plane the catapult already clamped")
         assertFalse(
             applier.contains("bp.y + 1.0"),
             "unoccupied lock must not rest at blockY+1 on a half-high catapult"
+        )
+        assertFalse(
+            applier.contains("if (shape.isEmpty) 1.0"),
+            "empty shipyard collision must not be treated as a full cube"
         )
     }
 

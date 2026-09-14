@@ -181,6 +181,28 @@ object ShipDeckLanding {
     }
 
     /**
+     * Catapult lock is owned by Immersive Aircraft clamp at padY+0.5.
+     * Eureka weld must not re-pin those planes (that was the half-block hover).
+     */
+    fun isCatapultPad(blockId: String): Boolean {
+        return blockId == "immersive_aircraft:catapult"
+    }
+
+    /**
+     * Empty collision shapes must not be treated as a full cube. That is how a
+     * 0.5-high pad became rest Y = blockY+1.
+     */
+    fun collisionMaxYOrSkip(shapeEmpty: Boolean, collisionMaxYInBlock: Double): Double? {
+        if (shapeEmpty) {
+            return null
+        }
+        if (collisionMaxYInBlock <= 1.0e-6) {
+            return null
+        }
+        return collisionMaxYInBlock
+    }
+
+    /**
      * Parked-weld world position is always the live ship transform. Kinematic
      * carry from [correct] is first-order in velocity and lags a rotating
      * >100 m/s deck by meters per tick.

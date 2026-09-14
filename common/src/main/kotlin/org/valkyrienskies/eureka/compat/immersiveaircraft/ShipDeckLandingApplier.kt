@@ -65,7 +65,14 @@ object ShipDeckLandingApplier {
             return false
         }
 
-        val deckY = findDeckYInShip(entity, ship) ?: existing?.local?.y ?: return false
+        val support = findSupportInShip(entity, ship)
+        if (support != null && ShipDeckLanding.isCatapultPad(support.blockId)) {
+            welds.remove(entity)
+            return false
+        }
+        val deckY = support?.let { ShipDeckLanding.collisionTopY(it.blockY, it.collisionMaxY) }
+            ?: existing?.local?.y
+            ?: return false
         val transform = ship.transform
         val shipToWorld = Matrix4d(transform.shipToWorld)
         val worldToShip = Matrix4d(transform.worldToShip)
@@ -208,7 +215,9 @@ object ShipDeckLandingApplier {
         )
     }
 
-    private fun findDeckYInShip(entity: Entity, ship: Ship): Double? {
+    private data class Support(val blockY: Int, val collisionMaxY: Double, val blockId: String)
+
+    private fun findSupportInShip(entity: Entity, ship: Ship): Support? {
         val shipPos = ship.worldToShip.transformPosition(Vector3d(entity.x, entity.y + 0.1, entity.z))
         val level = entity.level()
         for (dy in -2..16) {
@@ -217,9 +226,13 @@ object ShipDeckLandingApplier {
             if (state.isAir) {
                 continue
             }
+            val id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.block).toString()
             val shape = state.getCollisionShape(level, bp)
-            val top = if (shape.isEmpty) 1.0 else shape.max(net.minecraft.core.Direction.Axis.Y)
-            return ShipDeckLanding.collisionTopY(bp.y, top)
+            val top = ShipDeckLanding.collisionMaxYOrSkip(
+                shape.isEmpty,
+                if (shape.isEmpty) 0.0 else shape.max(net.minecraft.core.Direction.Axis.Y)
+            ) ?: continue
+            return Support(bp.y, top, id)
         }
         return null
     }
