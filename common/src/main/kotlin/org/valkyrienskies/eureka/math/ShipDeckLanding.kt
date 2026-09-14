@@ -207,6 +207,8 @@ object ShipDeckLanding {
     /** VS scales F5 zoom with ship AABB (often 40–80 blocks). Cap so the camera stays in loaded chunks. */
     const val SHIP_THIRD_PERSON_MAX = 8.0
 
+    @JvmStatic
+    @JvmOverloads
     fun capShipThirdPersonDistance(distance: Double, maxDistance: Double = SHIP_THIRD_PERSON_MAX): Double {
         return if (distance > maxDistance) maxDistance else distance
     }
