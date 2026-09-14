@@ -94,6 +94,13 @@ class ShipDeckLandingTest {
             ShipDeckLanding.collisionMaxYOrSkip(false, 0.5)!!
         )
         assertEquals(10.5, padTop, 1e-9)
+        assertEquals(10.5, ShipDeckLanding.catapultRestY(10), 1e-9)
+        assertEquals(10.5, ShipDeckLanding.weldSitY(10.5, true), 1e-9)
+        assertEquals(10.55, ShipDeckLanding.weldSitY(10.5, false), 1e-9)
+        assertTrue(
+            kotlin.math.abs(ShipDeckLanding.weldSitY(10.5, true) - 11.0) > 0.4,
+            "catapult weld must match IA dockY, not blockY+1"
+        )
     }
 
     @Test

@@ -90,7 +90,13 @@ class MixinWiringTest {
             "kinematic carry after the pin is what slides parked planes at 100 m/s"
         )
         assertTrue(applier.contains("collisionTopY"), "0.5 pads must use voxel top, not a full block")
-        assertTrue(applier.contains("isCatapultPad"), "Eureka must not weld a plane the catapult already clamped")
+        assertTrue(applier.contains("isCatapultPad"), "catapult pads use 0.5 rest")
+        assertTrue(applier.contains("weldSitY"), "catapult sit Y must match IA dock")
+        assertTrue(applier.contains("CATAPULT_HEIGHT"))
+        assertFalse(
+            Regex("isCatapultPad\\(support\\.blockId\\)\\) \\{\\s*welds\\.remove\\(entity\\)\\s*return false").containsMatchIn(applier),
+            "skipping glue on a catapult fights VS drag and the pad clamp"
+        )
         assertFalse(
             applier.contains("bp.y + 1.0"),
             "unoccupied lock must not rest at blockY+1 on a half-high catapult"

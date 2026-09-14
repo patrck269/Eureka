@@ -66,10 +66,7 @@ object ShipDeckLandingApplier {
         }
 
         val support = findSupportInShip(entity, ship)
-        if (support != null && ShipDeckLanding.isCatapultPad(support.blockId)) {
-            welds.remove(entity)
-            return false
-        }
+        val onCatapult = support != null && ShipDeckLanding.isCatapultPad(support.blockId)
         val deckY = support?.let { ShipDeckLanding.collisionTopY(it.blockY, it.collisionMaxY) }
             ?: existing?.local?.y
             ?: return false
@@ -83,7 +80,7 @@ object ShipDeckLandingApplier {
             shipId = ship.id,
             local = worldToShip.transformPosition(Vector3d(entity.x, entity.y, entity.z))
         )
-        weld.local.y = deckY + 0.05
+        weld.local.y = ShipDeckLanding.weldSitY(deckY, onCatapult)
         if (existing == null) {
             val probe = entityToPlane(entity, roll, extraShapes, enginesIdle = true)
             val probeFrame = ShipDeckBridge.shipFrameForEntityTick(
@@ -227,6 +224,9 @@ object ShipDeckLandingApplier {
                 continue
             }
             val id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.block).toString()
+            if (ShipDeckLanding.isCatapultPad(id)) {
+                return Support(bp.y, ShipDeckLanding.CATAPULT_HEIGHT, id)
+            }
             val shape = state.getCollisionShape(level, bp)
             val top = ShipDeckLanding.collisionMaxYOrSkip(
                 shape.isEmpty,

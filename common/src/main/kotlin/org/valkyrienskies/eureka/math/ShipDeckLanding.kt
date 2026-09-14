@@ -176,16 +176,27 @@ object ShipDeckLanding {
      * Rest Y in ship space is the collision top of the supporting block, not
      * always {@code blockY + 1}. A 0.5-high catapult pad is {@code blockY + 0.5}.
      */
+    const val CATAPULT_HEIGHT = 0.5
+    const val DECK_SIT = 0.05
+
     fun collisionTopY(blockY: Int, collisionMaxYInBlock: Double): Double {
         return blockY + collisionMaxYInBlock
     }
 
-    /**
-     * Catapult lock is owned by Immersive Aircraft clamp at padY+0.5.
-     * Eureka weld must not re-pin those planes (that was the half-block hover).
-     */
     fun isCatapultPad(blockId: String): Boolean {
         return blockId == "immersive_aircraft:catapult"
+    }
+
+    fun catapultRestY(blockY: Int): Double {
+        return collisionTopY(blockY, CATAPULT_HEIGHT)
+    }
+
+    /**
+     * Catapult rest matches IA [dockY] (pad top). Other decks sit 5cm above the voxel.
+     * Skipping Eureka glue on a moving ship fights VS drag and the pad clamp.
+     */
+    fun weldSitY(deckTopY: Double, catapult: Boolean): Double {
+        return if (catapult) deckTopY else deckTopY + DECK_SIT
     }
 
     /**
