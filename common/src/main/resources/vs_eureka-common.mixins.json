@@ -9,12 +9,22 @@
     "MixinMinecraftServerShipDeckWeld",
     "MixinServerLevelShipDeckWeld",
     "compat.MixinImmersiveAircraftVehicle",
-    "compat.MixinSimplePlanesVehicle"
+    "compat.MixinSimplePlanesVehicle",
+    "compat.MixinImmersiveVehiclesVehicle",
+    "compat.MixinWrapperWorldShipCollision",
+    "MixinWariumArrowTickOnShip",
+    "MixinWariumSkipShipyardMove",
+    "compat.MixinWariumHugeBulletHit",
+    "compat.MixinWariumHvParticleHit",
+    "compat.MixinWariumHugeBulletEntityHit"
   ],
   "client": [
     "client.MixinClientLevelShipDeckWeld",
     "client.MixinMinecraftShipDeckWeld",
     "client.PlayerEntityModelMixin"
+  ],
+  "server": [
+    "compat.MixinDhProxyUtilServer"
   ],
   "injectors": {
     "defaultRequire": 1
